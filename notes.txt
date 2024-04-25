@@ -1,3 +1,5 @@
 Things to think about:
+* Need to be able to check if a piece can hop over another piece
+* How to encode possible moves for a piece
 
 TODO:

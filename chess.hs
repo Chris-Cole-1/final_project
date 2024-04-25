@@ -1,15 +1,35 @@
 type Tile = Maybe Piece
 type Board = [[Tile]]
+type Piece = (PieceType, Color)
     
 data PieceType = Pawn | Knight | Bishop | Rook | Queen | King
     deriving (Show, Eq)
 
 data Color = White | Black
 
-type Piece = (PieceType, Color)
+empty::Tile
+empty = Nothing
 
-setBoard :: Board -> Board
-setBoard board = 
+board :: Board
+board = 
+    [
+    [Just(Rook,Black), Just(Knight,Black), Just(Bishop,Black), Just(King,Black),  Just(Queen,Black), Just(Bishop,Black), Just(Knight,Black), Just(Rook,Black)],
+    [Just(Pawn,Black), Just(Pawn,Black),   Just(Pawn,Black),   Just(Pawn,Black),  Just(Pawn,Black),  Just(Pawn,Black),   Just(Pawn,Black),   Just(Pawn,Black)],
+    [Nothing,          Nothing,            Nothing,            Nothing,           Nothing,           Nothing,            Nothing,            Nothing         ],
+    [Nothing,          Nothing,            Nothing,            Nothing,           Nothing,           Nothing,            Nothing,            Nothing         ],
+    [Nothing,          Nothing,            Nothing,            Nothing,           Nothing,           Nothing,            Nothing,            Nothing         ],
+    [Nothing,          Nothing,            Nothing,            Nothing,           Nothing,           Nothing,            Nothing,            Nothing         ],
+    [Just(Pawn,White), Just(Pawn,White),   Just(Pawn,White),   Just(Pawn,White),  Just(Pawn,White),  Just(Pawn,White),   Just(Pawn,White),   Just(Pawn,White)],
+    [Just(Rook,White), Just(Knight,White), Just(Bishop,White), Just(Queen,White), Just(King,White),  Just(Bishop,White), Just(Knight,White), Just(Rook,White)]
+    ]
+
+
+-- setBoard :: Board -> Board
+-- setBoard board = 
+
+-- Returns the tile at the specified row and col
+getTile :: Board -> (Int,Int) -> Tile
+getTile board (row,col) = (board !! row) !! col
 
 addPiece :: Board -> Piece -> (Int, Int) -> Board
 addPiece board piece (row,col) =
