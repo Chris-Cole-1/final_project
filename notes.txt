@@ -3,3 +3,4 @@ Things to think about:
 * How to encode possible moves for a piece
 
 TODO:
+* Function to 
