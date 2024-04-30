@@ -1,11 +1,13 @@
-type Tile = Maybe Piece
-type Board = [[Tile]]
-type Piece = (PieceType, Color)
+import Data.Char
+type Tile = Maybe Piece             -- represents a square on the baord
+type Board = [[Tile]]               -- represents a 2D list of Tiles
+type Piece = (PieceType, Color)     -- represents a chess piece that has a type and color
+--type Position = (Char, Int)         -- represents algebraic notation of board positions
     
 data PieceType = Pawn | Knight | Bishop | Rook | Queen | King
     deriving (Show, Eq)
-
 data Color = White | Black
+
 
 empty::Tile
 empty = Nothing
@@ -48,7 +50,28 @@ addPiece board piece (row,col) =
         then updateElement board (row,col) (Just piece)
         else board
 
+splitOn :: Char -> String -> [String]
+splitOn c [] = []
+splitOn c (x:xs) =  if x == c 
+                    then splitOn c xs 
+                    else let (mv,rest) = span isAlphaNum (x:xs)
+                         in mv : splitOn c rest
 
+posToTile :: String -> ((Int,Int),(Int,Int))
+posToTile s = let lst = splitOn ' ' s
+                in ((read [(last (head lst))], letterToNum (head (head lst))),
+                    (read [(last (last lst))], letterToNum (head (last lst))))
+
+letterToNum :: Char -> Int
+letterToNum c | c == 'A' = 0
+letterToNum c | c == 'B' = 1
+letterToNum c | c == 'C' = 2
+letterToNum c | c == 'D' = 3
+letterToNum c | c == 'E' = 4
+letterToNum c | c == 'F' = 5
+letterToNum c | c == 'G' = 6
+letterToNum c | c == 'H' = 7
+letterToNum c = -1
 
 -- isValidMove :: (Int, Int) -> (Int, Int) -> Bool
 -- isValidMove (curRow,curCol) (nxtRow,nxtCol) = case getTile (curRow,curCol) of
@@ -62,3 +85,16 @@ updateElement board (row,col) x =
     take row board ++
     [take col (board !! row) ++ [x] ++ drop (col + 1) (board !! row)] ++
     drop (row + 1) board
+
+
+main :: IO ()
+main = do
+    putStrLn "Welcome!\nPlease choose from one of the following options.\n ~ Start Game\n ~ Quit\n"
+    repl board
+
+repl :: Board -> IO ()
+repl board = do 
+    putStrLn "Please enter your move\n"
+    s <- getLine
+    case s of
+        "quit" -> return ()
