@@ -10,8 +10,8 @@ type MoveSet = [String]
 --data Piece = (String, [String]) -- (Name, list of moves)
 
 -- Create a 2D array (matrix) of a specific size using nested lists
-createMatrix :: Int -> Int -> a -> [[a]]
-createMatrix rows cols defaultValue = replicate rows (replicate cols defaultValue)
+createMatrix :: Int -> Int -> Board
+createMatrix rows cols = replicate rows (replicate cols Tile)
 
 -- Rank of Pieces that are identified by a certain int
 k :: Int -- King
