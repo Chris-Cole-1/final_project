@@ -41,8 +41,11 @@ board =
 -------------------------------------------------------------------------------------------------------------------
 -- Making moves
 -------------------------------------------------------------------------------------------------------------------
+
+-- Assumes the move to be made is valid and updates the board with that move
 makeMove :: Board -> (Int,Int) -> (Int,Int) -> Board
-makeMove board s c = board
+makeMove board cur dst =    let newBoard = updateBoard board dst (getPiece (getSquare cur))
+                            in updateBoard newBoard cur Nothing
 
 
 -------------------------------------------------------------------------------------------------------------------
@@ -52,18 +55,15 @@ makeMove board s c = board
 -- Given a list, and index, and an element, update that list at that index with that element
 updateRow :: [a] -> Int -> a -> [a]
 updateRow [] _ _ = []
-updateRow (x:xs) i elem = if i == 0 then elem : xs else x : updateRow xs (i - 1) elem
+updateRow list index elem = take (index) list ++ [elem] ++ (drop (index+1) list)
+--updateRow (x:xs) i elem = if i == 0 then elem : xs else x : updateRow xs (i - 1) elem
 
 -- Given a 2D list, an index, and an element, update the index in that list with that element
 updateBoard :: [[a]] -> (Int,Int) -> a -> [[a]]
 updateBoard [[]] _ _ = [[]]
-updateBoard (a:arr) (r,c) elem = if r == 0 then updateRow a c elem : arr else a : updateBoard arr (r - 1,c) elem
+updateBoard list (r,c) elem = take r list ++ [updateRow (list !! r) c elem] ++ drop (r+1) list
+--updateBoard (a:arr) (r,c) elem = if r == 0 then updateRow a c elem : arr else a : updateBoard arr (r - 1,c) elem
 
--- updateRow :: [[a]] -> Int -> [a] -> [[a]]
--- updateRow (a:arr) i row = if i == 0 then row : arr else a : updateRow arr (i - 1) row
-
--- updateSquare :: Board -> (Int,Int) -> Square -> Board
--- updateSquare b (row,col) s = b
 
 -------------------------------------------------------------------------------------------------------------------
 -- Computing valid moves
@@ -79,16 +79,59 @@ isOccupied board (row,col) = case getSquare board (row,col) of
                             Just _ -> True
                             Nothing -> False
 
+-- Checks if a given sqaure is empty
+isEmpty :: Square -> Bool
+isEmpty Nothing = True
+isEmpty _ = False
+
 -- Returns the Square at the specified row and col
 getSquare :: Board -> (Int,Int) -> Square
 getSquare board (row,col) = if isValidSquare (row,col) then (board !! row) !! col else error "Out of Board range!!"
 
+-- Scans in a straight line in a certain direction to to see if we can make
+-- a move from the current position to the destination
+scanStraight :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
+scanStraight board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
+                                                    cur = getSquare board (curRow,curCol)
+                                                in case dir of 
+                                                    (0,0) -> not (friendly piece cur)
+                                                    (r,0) -> isEmpty cur && scanStraight board piece (curRow+r,curCol) dst 
+                                                    (0,c) -> isEmpty cur && scanStraight board piece (curRow,curCol+c) dst
+                                                    _     -> False 
+
+-- Scans in a diagonal line in a certain direction to see if we can make
+-- a move from the current position to the destination 
+scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
+scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
+                                                cur = getSquare board (curRow,curCol)
+                                            in case dir of 
+                                                (0,0) -> not (friendly piece cur)
+                                                (r,0) -> False
+                                                (0,c) -> False
+                                                (r,c) -> isEmpty cur && scanStraight board piece (curRow+r,curCol+c) dst 
+
+-- Given two positions gets the direction of the move needed in a tuple
+-- Row: 1 is down, -1 is up
+-- Col: 1 is right, -1 is left
+-- If (0,0) you are at the destination
+getDir :: (Int,Int) -> (Int,Int) -> (Int,Int)
+getDir (curRow,curCol) (nxtRow,nxtCol) = (
+    if curRow > nxtRow then -1 else if curRow == nxtRow then 0 else 1,
+    if curCol > nxtCol then -1 else if curCol == nxtCol then 0 else 1)
+
 -- Returns True if the two given squares contain pieces of the same color
 -- If either or both squares are empty (Nothing), it returns False
-friendly :: Board -> Square -> Square -> Bool
-friendly b (Nothing) _ = False
-friendly b _ (Nothing) = False
-friendly b (Just (pType1,color1)) (Just (pType2,color2)) = color1 == color2
+friendly :: Piece -> Square -> Bool
+friendly p (Nothing) = False
+friendly p (Just (t,c)) = snd p == c
+-- friendly b (Nothing) _ = False
+-- friendly b _ (Nothing) = False
+-- friendly b (Just (pType1,color1)) (Just (pType2,color2)) = color1 == color2
+
+-- Given a square returns what is at that square (nothing or a piece)
+getPiece :: Square -> Maybe Piece
+getPiece Nothing = Nothing
+getPiece (Just p) = Just p
 
 -- Returns True if the two given squares contain pieces of t different colors
 -- If either or both squares are empty (Nothing), it returns False
@@ -97,27 +140,38 @@ hostile b (Nothing) _ = False
 hostile b _ (Nothing) = False
 hostile b (Just (pType1,color1)) (Just (pType2,color2)) = color1 /= color2
 
+-- Checks if a specified move is valid on the board
 isValidMove :: Board -> (Int, Int) -> (Int, Int) -> Bool
-isValidMove board (curRow,curCol) (nxtRow,nxtCol) = case getSquare board (curRow,curCol) of
-    Just (King,c) -> False
+isValidMove board cur dst = case getSquare board cur of
+    Just (King,c) ->    let dsq = getSquare board dst
+                            lst = moves cur kingTuples
+                        in not $ friendly (King,c) dsq && not (isCheck (makeMove board cur dst) dst) && dst `elem` lst
     Just (Queen,c) -> False
-    Just (Knight,c) -> False
+    Just (Knight,c) ->  let dsq = getSquare board dst
+                            lst = moves cur knightTuples
+                        in not $ friendly (Knight,c) dsq && dst `elem` lst
     Just (Bishop,c) -> False
     Just (Rook,c) -> False
     Just (Pawn,c) -> False
     Nothing -> error "ERROR: No piece at first input square!"
 
--- scan :: Board -> (Int, Int) -> [Sqaure]
--- scan board (row,col) = 
+-- Returns a list of possible moves given a position on the board and a list of valid movements
+moves :: (Int,Int) -> [(Int,Int)] -> [(Int,Int)]
+moves (r,c) validMoves = foldr (\x acc -> let mv = (r + fst x,c + snd x) 
+                                          in if isValidSquare mv then mv : acc else acc) [] validMoves
 
-kingMoves :: Board -> Square -> [Square]
-kingMoves b s = []
+-- All possible king moves
+kingTuples :: [(Int,Int)]
+kingTuples = [(i,j)  |  i <- [-1..1],
+                        j <- [-1..1],
+                        not (i == 0 && j == 0)]
+
+-- All possible knight moves
+knightTuples :: [(Int,Int)]
+knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
 
 queenMoves :: Board -> (Int,Int) -> [Square]
 queenMoves b (row,col) = []
-
-knightMoves :: Board -> Square -> [Square]
-knightMoves b s = []
 
 bishopMoves :: Board -> Square -> [Square]
 bishopMoves b s = []
@@ -128,9 +182,14 @@ rookMoves b s = []
 pawnMoves :: Board -> Square -> [Square]
 pawnMoves b s = []
 
+-- 
+canCaptureKing :: Board -> (Int,Int) -> (Int,Int) -> Bool
+canCaptureKing board cur dst =  let piece = getPiece (getSquare board cur)
+                                in 
+
 -- Determines if the king of the specified color is in check
-isCheck :: Color -> Board -> Bool
-isCheck c b = False
+isCheck :: Board -> (Int,Int) -> Bool
+isCheck board pos = False
 
 -- Determines if the king of the specified color is in checkmate
 isCheckmate :: Color -> Board -> Bool

@@ -17,3 +17,6 @@ https://www.haskell.org/tutorial/io.html
 * How to access the board given classic chess board labels
 * How to access 2D list and update squares on the board
 * Possibly use chess algebraic notation for player input?
+
+* Queen, Bishop, Rook need to deal with valid moves recursively since they can move an unspecified number of tiles
+* Other pieces have a certain rangs
