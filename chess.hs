@@ -272,12 +272,13 @@ printSquare square = [showPiece square]
 -- Function to print a single row of the chessboard
 printRow :: [Square] -> Int -> IO ()
 printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map printSquare row) ++ "  |  " ++ show num
+--printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map unicodePiece row) ++ "  |  " ++ show num
 
 -- Function to print the entire chessboard
 printBoard :: Board -> IO ()
 printBoard board = do
-    mapM_ (\(row, num) -> do putStrLn "-------------------------------------------------"; printRow row num) (zip board [8,7..1])
-    putStrLn "-------------------------------------------------"
+    mapM_ (\(row, num) -> do putStrLn "------------------------------------------------"; printRow row num) (zip board [8,7..1])
+    putStrLn "------------------------------------------------"
     putStrLn "  A      B     C     D     E     F     G     H "
 
 
