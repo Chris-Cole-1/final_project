@@ -84,6 +84,11 @@ isEmpty :: Square -> Bool
 isEmpty Nothing = True
 isEmpty _ = False
 
+-- Returns the color of a the peice at the given square
+getColor :: Square -> Color
+getColor Nothing = error "No piece at this square!!!"
+getColor (Just (p,c)) = c
+
 -- Returns the Square at the specified row and col
 getSquare :: Board -> (Int,Int) -> Square
 getSquare board (row,col) = if isValidSquare (row,col) then (board !! row) !! col else error "Out of Board range!!"
@@ -151,8 +156,8 @@ isValidMove board cur dst = case getSquare board cur of
     Just (Knight,c) ->  let dsq = getSquare board dst
                             lst = moves cur knightTuples
                         in not $ friendly (Knight,c) dsq && dst `elem` lst
-    Just (Bishop,c) -> False
-    Just (Rook,c) -> False
+    Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
+    Just (Rook,c) -> scanStraight board (Rook,c) cur dst
     Just (Pawn,c) -> False
     Nothing -> error "ERROR: No piece at first input square!"
 
@@ -177,25 +182,20 @@ whitePawnTuples = [(-1,0)]
 blackPawnTuples :: [(Int,Int)]
 blackPawnTuples = [(1,0)]
 
+-- Returns true if a pawn can take an opposing piece
+pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
+pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
+                                opp = getPiece (getSquare board dst)
+                            in opp /= Nothing && getColor pawn /= getColor opp
+
 -- Given a row and col, returns true if that pawn has not moved yet
 pawnStart :: Board -> (Int,Int) -> Bool
 pawnStart board (row,col) = case getSquare board (row,col) of 
-                                Just (Pawn,c) -> row == 1 || row == 6
+                                Just (Pawn,c) -> if c == White then row == 6 else row == 1
                                 _ -> False
 
--- queenMoves :: Board -> (Int,Int) -> [Square]
--- queenMoves b (row,col) = []
-
--- bishopMoves :: Board -> Square -> [Square]
--- bishopMoves b s = []
-
--- rookMoves :: Board -> Square -> [Square]
--- rookMoves b s = []
-
--- pawnMoves :: Board -> Square -> [Square]
--- pawnMoves b s = []
-
--- 
+-- Given a current index and a destination index,
+--      returns true if ?????
 canCaptureKing :: Board -> (Int,Int) -> (Int,Int) -> Bool
 canCaptureKing board cur dst =  let piece = getPiece (getSquare board cur)
                                 in False
