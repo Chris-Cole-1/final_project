@@ -1,4 +1,5 @@
 import Data.Char
+import Data.List
 
 -------------------------------------------------------------------------------------------------------------------
 -- Type and Data Definitions
@@ -264,18 +265,26 @@ getSW board (row,col) = []
 -- I/O
 -------------------------------------------------------------------------------------------------------------------
 
-main :: IO ()
-main = do
-    putStrLn "Welcome!\nPlease choose from one of the following options.\n ~ Start Game\n ~ Quit\n"
-    repl board
+-- Function to print a single row of the chessboard
+printSquare :: Square -> String
+printSquare square = [showPiece square]
 
-repl :: Board -> IO ()
-repl board = do 
-    putStrLn "Please enter your move\n"
-    s <- getLine
-    case s of
-        "Quit" -> return ()
-        --"Start Game" -> 
+-- Function to print a single row of the chessboard
+printRow :: [Square] -> Int -> IO ()
+printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map unicodePiece row) ++ "  |  " ++ show num
+
+-- Function to print the entire chessboard
+printBoard :: Board -> IO ()
+printBoard board = do
+    mapM_ (\(row, num) -> do putStrLn "———————————————————————————----------------------"; printRow row num) (zip board [8,7..1])
+    putStrLn "———————————————————————————----------------------"
+    putStrLn "  A      B     C     D     E     F     G     H "
+
+
+main :: IO ()
+main = printBoard board
+
+
 
 -- Splits a string on a specified character
 splitOn :: Char -> String -> [String]
@@ -329,3 +338,18 @@ showPiece (Just (Bishop, Black)) = 'b'
 showPiece (Just (Knight, Black)) = 'n'
 showPiece (Just (pawn, Black))   = 'p'
 showPiece _ = ' '
+
+unicodePiece :: Maybe Piece -> String
+unicodePiece (Just (King, Black))   = "♔"
+unicodePiece (Just (Queen, Black))  = "♕"
+unicodePiece (Just (Rook, Black))   = "♖"
+unicodePiece (Just (Bishop, Black)) = "♗"
+unicodePiece (Just (Knight, Black)) = "♘"
+unicodePiece (Just (Pawn, Black))   = "♙"
+unicodePiece (Just (King, White))   = "♚"
+unicodePiece (Just (Queen, White))  = "♛"
+unicodePiece (Just (Rook, White) )  = "♜"
+unicodePiece (Just (Bishop, White)) = "♝"
+unicodePiece (Just (Knight, White)) = "♞"
+unicodePiece (Just (Pawn, White))   = "♟"
+unicodePiece _ = " "
