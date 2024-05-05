@@ -158,7 +158,12 @@ isValidMove board cur dst = case getSquare board cur of
                         in not $ friendly (Knight,c) dsq && dst `elem` lst
     Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
     Just (Rook,c) -> scanStraight board (Rook,c) cur dst
-    Just (Pawn,c) -> False
+    Just (Pawn,White) ->    let dsq = getSquare board dst
+                                lst = moves cur whitePawnTuples
+                            in not $ friendly (Pawn,White) dsq && dst `elem` lst
+    Just (Pawn,Black) ->    let dsq = getSquare board dst
+                                lst = moves cur blackPawnTuples
+                            in not $ friendly (Pawn,Black) dsq && dst `elem` lst
     Nothing -> error "ERROR: No piece at first input square!"
 
 -- Returns a list of possible moves given a position on the board and a list of valid movements
@@ -175,10 +180,11 @@ kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
 knightTuples :: [(Int,Int)]
 knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
 
--- All possible pawn moves
+-- All possible white pawn moves
 whitePawnTuples :: [(Int,Int)]
 whitePawnTuples = [(-1,0),(-2,0),(-1,-1),(-1,1)]
 
+-- All possible black pawn moves
 blackPawnTuples :: [(Int,Int)]
 blackPawnTuples = [(1,0),(2,0),(1,1),(1,-1)]
 
