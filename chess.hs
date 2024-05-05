@@ -152,7 +152,7 @@ isValidMove board cur dst = case getSquare board cur of
     Just (King,c) ->    let dsq = getSquare board dst
                             lst = moves cur kingTuples
                         in not $ friendly (King,c) dsq && not (isCheck (makeMove board cur dst) dst) && dst `elem` lst
-    Just (Queen,c) -> False
+    Just (Queen,c) ->   scanDiag board (Queen,c) cur dst || scanStraight board (Queen,c) cur dst
     Just (Knight,c) ->  let dsq = getSquare board dst
                             lst = moves cur knightTuples
                         in not $ friendly (Knight,c) dsq && dst `elem` lst
@@ -177,10 +177,10 @@ knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
 
 -- All possible pawn moves
 whitePawnTuples :: [(Int,Int)]
-whitePawnTuples = [(-1,0)]
+whitePawnTuples = [(-1,0),(-2,0),(-1,-1),(-1,1)]
 
 blackPawnTuples :: [(Int,Int)]
-blackPawnTuples = [(1,0)]
+blackPawnTuples = [(1,0),(2,0),(1,1),(1,-1)]
 
 -- Returns true if a pawn can take an opposing piece
 pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
@@ -189,8 +189,8 @@ pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
                             in opp /= Nothing && getColor pawn /= getColor opp
 
 -- Given a row and col, returns true if that pawn has not moved yet
-pawnStart :: Board -> (Int,Int) -> Bool
-pawnStart board (row,col) = case getSquare board (row,col) of 
+pawnAtStart :: Board -> (Int,Int) -> Bool
+pawnAtStart board (row,col) = case getSquare board (row,col) of 
                                 Just (Pawn,c) -> if c == White then row == 6 else row == 1
                                 _ -> False
 
@@ -282,8 +282,8 @@ splitOn c (x:xs) =  if x == c
 -- Converts string input from user into rows and cols on the board
 posToSquare :: String -> ((Int,Int),(Int,Int))
 posToSquare s = let lst = splitOn ' ' s
-                in ((read [(last (head lst))], letterToNum (head (head lst))),
-                    (read [(last (last lst))], letterToNum (head (last lst))))
+                in ((numToNum (last (head lst)), letterToNum (head (head lst))),
+                    (numToNum (last (last lst)), letterToNum (head (last lst))))
 
 -- Converts letters to numbers to access the board
 letterToNum :: Char -> Int
@@ -297,16 +297,16 @@ letterToNum c | c == 'G' = 6
 letterToNum c | c == 'H' = 7
 letterToNum c = -1
 
--- Converts chess board number labes to indexes to access the board
-numToNum :: Int -> Int
-numToNum n | n == 8 = 0
-numToNum n | n == 7 = 1
-numToNum n | n == 6 = 2
-numToNum n | n == 5 = 3
-numToNum n | n == 4 = 4
-numToNum n | n == 3 = 5
-numToNum n | n == 2 = 6
-numToNum n | n == 1 = 7
+-- Converts chess board number labels to indexes to access the board
+numToNum :: Char -> Int
+numToNum n | n == '8' = 0
+numToNum n | n == '7' = 1
+numToNum n | n == '6' = 2
+numToNum n | n == '5' = 3
+numToNum n | n == '4' = 4
+numToNum n | n == '3' = 5
+numToNum n | n == '2' = 6
+numToNum n | n == '1' = 7
 numToNum n = -1
 
 showPiece :: Maybe Piece -> Char
