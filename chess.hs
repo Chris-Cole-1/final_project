@@ -44,7 +44,7 @@ board =
 
 -- Assumes the move to be made is valid and updates the board with that move
 makeMove :: Board -> (Int,Int) -> (Int,Int) -> Board
-makeMove board cur dst =    let newBoard = updateBoard board dst (getPiece (getSquare cur))
+makeMove board cur dst =    let newBoard = updateBoard board dst (getPiece (getSquare board cur))
                             in updateBoard newBoard cur Nothing
 
 
@@ -83,6 +83,11 @@ isOccupied board (row,col) = case getSquare board (row,col) of
 isEmpty :: Square -> Bool
 isEmpty Nothing = True
 isEmpty _ = False
+
+-- Returns the color of a the peice at the given square
+getColor :: Square -> Color
+getColor Nothing = error "No piece at this square!!!"
+getColor (Just (p,c)) = c
 
 -- Returns the Square at the specified row and col
 getSquare :: Board -> (Int,Int) -> Square
@@ -143,6 +148,7 @@ hostile b (Just (pType1,color1)) (Just (pType2,color2)) = color1 /= color2
 -- Checks if a specified move is valid on the board
 isValidMove :: Board -> (Int, Int) -> (Int, Int) -> Bool
 isValidMove board cur dst = case getSquare board cur of
+    -- For the king, we make the desired move on a hypothetical board and check to see if that would cause a check
     Just (King,c) ->    let dsq = getSquare board dst
                             lst = moves cur kingTuples
                         in not $ friendly (King,c) dsq && not (isCheck (makeMove board cur dst) dst) && dst `elem` lst
@@ -150,42 +156,49 @@ isValidMove board cur dst = case getSquare board cur of
     Just (Knight,c) ->  let dsq = getSquare board dst
                             lst = moves cur knightTuples
                         in not $ friendly (Knight,c) dsq && dst `elem` lst
-    Just (Bishop,c) -> False
-    Just (Rook,c) -> False
+    Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
+    Just (Rook,c) -> scanStraight board (Rook,c) cur dst
     Just (Pawn,c) -> False
     Nothing -> error "ERROR: No piece at first input square!"
 
 -- Returns a list of possible moves given a position on the board and a list of valid movements
+--      Basically filtering out moves that would go off the board
 moves :: (Int,Int) -> [(Int,Int)] -> [(Int,Int)]
 moves (r,c) validMoves = foldr (\x acc -> let mv = (r + fst x,c + snd x) 
                                           in if isValidSquare mv then mv : acc else acc) [] validMoves
 
 -- All possible king moves
 kingTuples :: [(Int,Int)]
-kingTuples = [(i,j)  |  i <- [-1..1],
-                        j <- [-1..1],
-                        not (i == 0 && j == 0)]
+kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
 
 -- All possible knight moves
 knightTuples :: [(Int,Int)]
 knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
 
-queenMoves :: Board -> (Int,Int) -> [Square]
-queenMoves b (row,col) = []
+-- All possible pawn moves
+whitePawnTuples :: [(Int,Int)]
+whitePawnTuples = [(-1,0)]
 
-bishopMoves :: Board -> Square -> [Square]
-bishopMoves b s = []
+blackPawnTuples :: [(Int,Int)]
+blackPawnTuples = [(1,0)]
 
-rookMoves :: Board -> Square -> [Square]
-rookMoves b s = []
+-- Returns true if a pawn can take an opposing piece
+pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
+pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
+                                opp = getPiece (getSquare board dst)
+                            in opp /= Nothing && getColor pawn /= getColor opp
 
-pawnMoves :: Board -> Square -> [Square]
-pawnMoves b s = []
+-- Given a row and col, returns true if that pawn has not moved yet
+pawnStart :: Board -> (Int,Int) -> Bool
+pawnStart board (row,col) = case getSquare board (row,col) of 
+                                Just (Pawn,c) -> if c == White then row == 6 else row == 1
+                                _ -> False
 
--- 
+-- Given a current index and a destination index,
+--      returns true if ?????
 canCaptureKing :: Board -> (Int,Int) -> (Int,Int) -> Bool
 canCaptureKing board cur dst =  let piece = getPiece (getSquare board cur)
-                                in 
+                                in False
 
 -- Determines if the king of the specified color is in check
 isCheck :: Board -> (Int,Int) -> Bool
