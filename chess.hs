@@ -271,7 +271,36 @@ printBoard board = do
 
 
 main :: IO ()
-main = printBoard board
+main = do
+    putStrLn "Welcome!\nPlease choose from one of the following options.\n ~ Start Game\n ~ Quit\n"
+    s <- getLine
+    case s of
+        "Quit" -> return ()
+        "Start Game" -> repl board
+    --repl board
+
+repl :: Board -> IO ()
+repl board = do 
+    printBoard board
+    putStrLn "Please enter your move\n(Enter Quit to exit game)"
+    s <- getLine
+    case s of
+        "Quit" -> return ()
+        _ -> let move = posToSquare s
+           in if isValidMove board (fst move) (snd move)
+            then do
+                let update = makeMove board (fst move) (snd move)
+                repl update
+                else do
+                    putStrLn "Invalid Move"
+                    repl board
+        --"Start Game" -> 
+            --parse input
+            --check move
+            --make move
+            --print board
+
+            --implement turns
 
 
 
