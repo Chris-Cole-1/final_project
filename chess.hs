@@ -1,4 +1,5 @@
 import Data.Char
+import Data.List
 
 -------------------------------------------------------------------------------------------------------------------
 -- Type and Data Definitions
@@ -152,13 +153,24 @@ isValidMove board cur dst = case getSquare board cur of
     Just (King,c) ->    let dsq = getSquare board dst
                             lst = moves cur kingTuples
                         in not $ friendly (King,c) dsq && not (isCheck (makeMove board cur dst) dst) && dst `elem` lst
-    Just (Queen,c) -> False
+    Just (Queen,c) ->   scanDiag board (Queen,c) cur dst || scanStraight board (Queen,c) cur dst
     Just (Knight,c) ->  let dsq = getSquare board dst
                             lst = moves cur knightTuples
                         in not $ friendly (Knight,c) dsq && dst `elem` lst
     Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
     Just (Rook,c) -> scanStraight board (Rook,c) cur dst
-    Just (Pawn,c) -> False
+    Just (Pawn,White) ->    let dsq = getSquare board dst
+                            in  if isEmpty dsq
+                                then    if pawnAtStart board cur && (fst cur - 2,snd cur) == dst 
+                                        then True
+                                        else (fst cur - 1,snd cur) == dst
+                                else pawnCanTake board cur dst
+    Just (Pawn,Black) ->    let dsq = getSquare board dst
+                            in  if isEmpty dsq
+                                then    if pawnAtStart board cur && (fst cur + 2,snd cur) == dst 
+                                        then True
+                                        else (fst cur + 1,snd cur) == dst
+                                else pawnCanTake board cur dst
     Nothing -> error "ERROR: No piece at first input square!"
 
 -- Returns a list of possible moves given a position on the board and a list of valid movements
@@ -173,24 +185,39 @@ kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
 
 -- All possible knight moves
 knightTuples :: [(Int,Int)]
-knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
+knightTuples = [(1,2), (2,1), (-1,-2), (-2,-1), (1,-2), (-1,2), (-2,1), (2,-1)]
 
--- All possible pawn moves
+-- All possible white pawn moves
 whitePawnTuples :: [(Int,Int)]
 whitePawnTuples = [(-1,0)]
 
+whitePawnTake :: [(Int,Int)]
+whitePawnTake = [(-1,-1),(-1,1)]
+
+whitePawnStep2 :: [(Int,Int)]
+whitePawnStep2 = [(-2,0)]
+
+-- All possible black pawn moves
 blackPawnTuples :: [(Int,Int)]
 blackPawnTuples = [(1,0)]
 
+blackPawnTake :: [(Int,Int)]
+blackPawnTake = [(1,1),(1,-1)]
+
+blackPawnStep2 :: [(Int,Int)]
+blackPawnStep2 = [(2,0)]
+
 -- Returns true if a pawn can take an opposing piece
 pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
-pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
-                                opp = getPiece (getSquare board dst)
-                            in opp /= Nothing && getColor pawn /= getColor opp
+pawnCanTake board cur dst = let pawn = getSquare board cur
+                                opp = getSquare board dst
+                            in case pawn of
+                                Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
 
 -- Given a row and col, returns true if that pawn has not moved yet
-pawnStart :: Board -> (Int,Int) -> Bool
-pawnStart board (row,col) = case getSquare board (row,col) of 
+pawnAtStart :: Board -> (Int,Int) -> Bool
+pawnAtStart board (row,col) = case getSquare board (row,col) of 
                                 Just (Pawn,c) -> if c == White then row == 6 else row == 1
                                 _ -> False
 
@@ -258,18 +285,27 @@ getSW board (row,col) = []
 -- I/O
 -------------------------------------------------------------------------------------------------------------------
 
-main :: IO ()
-main = do
-    putStrLn "Welcome!\nPlease choose from one of the following options.\n ~ Start Game\n ~ Quit\n"
-    repl board
+-- Function to print a single row of the chessboard
+printSquare :: Square -> String
+printSquare square = [showPiece square]
 
-repl :: Board -> IO ()
-repl board = do 
-    putStrLn "Please enter your move\n"
-    s <- getLine
-    case s of
-        "Quit" -> return ()
-        --"Start Game" -> 
+-- Function to print a single row of the chessboard
+printRow :: [Square] -> Int -> IO ()
+printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map printSquare row) ++ "  |  " ++ show num
+--printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map unicodePiece row) ++ "  |  " ++ show num
+
+-- Function to print the entire chessboard
+printBoard :: Board -> IO ()
+printBoard board = do
+    mapM_ (\(row, num) -> do putStrLn "------------------------------------------------"; printRow row num) (zip board [8,7..1])
+    putStrLn "------------------------------------------------"
+    putStrLn "  A      B     C     D     E     F     G     H "
+
+
+main :: IO ()
+main = printBoard board
+
+
 
 -- Splits a string on a specified character
 splitOn :: Char -> String -> [String]
@@ -282,8 +318,8 @@ splitOn c (x:xs) =  if x == c
 -- Converts string input from user into rows and cols on the board
 posToSquare :: String -> ((Int,Int),(Int,Int))
 posToSquare s = let lst = splitOn ' ' s
-                in ((read [(last (head lst))], letterToNum (head (head lst))),
-                    (read [(last (last lst))], letterToNum (head (last lst))))
+                in ((numToNum (last (head lst)), letterToNum (head (head lst))),
+                    (numToNum (last (last lst)), letterToNum (head (last lst))))
 
 -- Converts letters to numbers to access the board
 letterToNum :: Char -> Int
@@ -297,16 +333,16 @@ letterToNum c | c == 'G' = 6
 letterToNum c | c == 'H' = 7
 letterToNum c = -1
 
--- Converts chess board number labes to indexes to access the board
-numToNum :: Int -> Int
-numToNum n | n == 8 = 0
-numToNum n | n == 7 = 1
-numToNum n | n == 6 = 2
-numToNum n | n == 5 = 3
-numToNum n | n == 4 = 4
-numToNum n | n == 3 = 5
-numToNum n | n == 2 = 6
-numToNum n | n == 1 = 7
+-- Converts chess board number labels to indexes to access the board
+numToNum :: Char -> Int
+numToNum n | n == '8' = 0
+numToNum n | n == '7' = 1
+numToNum n | n == '6' = 2
+numToNum n | n == '5' = 3
+numToNum n | n == '4' = 4
+numToNum n | n == '3' = 5
+numToNum n | n == '2' = 6
+numToNum n | n == '1' = 7
 numToNum n = -1
 
 showPiece :: Maybe Piece -> Char
@@ -323,3 +359,18 @@ showPiece (Just (Bishop, Black)) = 'b'
 showPiece (Just (Knight, Black)) = 'n'
 showPiece (Just (pawn, Black))   = 'p'
 showPiece _ = ' '
+
+unicodePiece :: Maybe Piece -> String
+unicodePiece (Just (King, Black))   = "♔"
+unicodePiece (Just (Queen, Black))  = "♕"
+unicodePiece (Just (Rook, Black))   = "♖"
+unicodePiece (Just (Bishop, Black)) = "♗"
+unicodePiece (Just (Knight, Black)) = "♘"
+unicodePiece (Just (Pawn, Black))   = "♙"
+unicodePiece (Just (King, White))   = "♚"
+unicodePiece (Just (Queen, White))  = "♛"
+unicodePiece (Just (Rook, White) )  = "♜"
+unicodePiece (Just (Bishop, White)) = "♝"
+unicodePiece (Just (Knight, White)) = "♞"
+unicodePiece (Just (Pawn, White))   = "♟"
+unicodePiece _ = " "
