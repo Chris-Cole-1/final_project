@@ -179,6 +179,47 @@ moves :: (Int,Int) -> [(Int,Int)] -> [(Int,Int)]
 moves (r,c) validMoves = foldr (\x acc -> let mv = (r + fst x,c + snd x) 
                                           in if isValidSquare mv then mv : acc else acc) [] validMoves
 
+-- Returns true if a pawn can take an opposing piece
+pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
+pawnCanTake board cur dst = let pawn = getSquare board cur
+                                opp = getSquare board dst
+                            in case pawn of
+                                Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+
+-- Given a row and col, returns true if that pawn has not moved yet
+pawnAtStart :: Board -> (Int,Int) -> Bool
+pawnAtStart board (row,col) = case getSquare board (row,col) of 
+                                Just (Pawn,c) -> if c == White then row == 6 else row == 1
+                                _ -> False
+
+-- Given a current index and a destination index,
+--      returns true if ?????
+canCaptureKing :: Board -> (Int,Int) -> (Int,Int) -> Bool
+canCaptureKing board king opp = let k = getPiece (getSquare board king)
+                                    o = getPiece (getSquare board opp)
+                                in isValidMove board opp king
+
+-- Determines if the king of the specified color is in check
+isCheck :: Board -> (Int,Int) -> Bool
+isCheck board king =    let opps = getPiecesBoard board (0,0) (getColor (getSquare board king))
+                        in foldr (\x acc -> isValidMove board x king || acc) False opps
+
+-- Determines if the king of the specified color is in checkmate
+isCheckmate :: Color -> Board -> Bool
+isCheckmate c b = False
+
+-- Gets all peices from a row with the specified color and stores those indexes in a list
+getPiecesRow :: [Square] -> Int -> Int -> Color -> [(Int,Int)]
+getPiecesRow [] _ _ _ = []
+getPiecesRow (l:ls) row col color = if getColor l == color then [(row,col)] else getPiecesRow ls row (col+1) color
+
+-- Get all pieces from the board with the specified color and stores those indexes in a list
+--      NOTE* -> Need to pass it like: getPiecesBoard (0,0) color so that it starts at the beginning of the board
+getPiecesBoard :: [[Square]] -> (Int,Int) -> Color -> [(Int,Int)]
+getPiecesBoard [] _ _ = []
+getPiecesBoard (row:rest) (r,c) color = getPiecesRow row r c color ++ getPiecesBoard rest (r-1,0) color
+
 -- All possible king moves
 kingTuples :: [(Int,Int)]
 kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
@@ -206,79 +247,6 @@ blackPawnTake = [(1,1),(1,-1)]
 
 blackPawnStep2 :: [(Int,Int)]
 blackPawnStep2 = [(2,0)]
-
--- Returns true if a pawn can take an opposing piece
-pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
-pawnCanTake board cur dst = let pawn = getSquare board cur
-                                opp = getSquare board dst
-                            in case pawn of
-                                Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
-                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
-
--- Given a row and col, returns true if that pawn has not moved yet
-pawnAtStart :: Board -> (Int,Int) -> Bool
-pawnAtStart board (row,col) = case getSquare board (row,col) of 
-                                Just (Pawn,c) -> if c == White then row == 6 else row == 1
-                                _ -> False
-
--- Given a current index and a destination index,
---      returns true if ?????
-canCaptureKing :: Board -> (Int,Int) -> (Int,Int) -> Bool
-canCaptureKing board cur dst =  let piece = getPiece (getSquare board cur)
-                                in False
-
--- Determines if the king of the specified color is in check
-isCheck :: Board -> (Int,Int) -> Bool
-isCheck board pos = False
-
--- Determines if the king of the specified color is in checkmate
-isCheckmate :: Color -> Board -> Bool
-isCheckmate c b = False
-
-
--------------------------------------------------------------------------------------------------------------------
--- Getting squares
--------------------------------------------------------------------------------------------------------------------
-
--- Get all sqaures north of the current (row,col) 
-getN :: Board -> (Int,Int) -> [Square]
-getN board (row,col) | isValidSquare (row-1,col) = getSquare board (row-1,col) : getN board (row-1,col)
-getN board (row,col) = []
-
--- Get all sqaures south of the current (row,col) 
-getS :: Board -> (Int,Int) -> [Square]
-getS board (row,col) | isValidSquare (row+1,col) = getSquare board (row+1,col) : getS board (row+1,col)
-getS board (row,col) = []
-
--- Get all sqaures east of the current (row,col) 
-getE :: Board -> (Int,Int) -> [Square]
-getE board (row,col) | isValidSquare (row,col+1) = getSquare board (row,col+1) : getE board (row,col+1)
-getE board (row,col) = []
-
--- Get all sqaures west of the current (row,col) 
-getW :: Board -> (Int,Int) -> [Square]
-getW board (row,col) | isValidSquare (row,col-1) = getSquare board (row,col-1) : getW board (row,col-1)
-getW board (row,col) = []
-
--- Get all sqaures northeast of the current (row,col) 
-getNE :: Board -> (Int,Int) -> [Square]
-getNE board (row,col) | isValidSquare (row-1,col+1) = getSquare board (row-1,col+1) : getNE board (row-1,col+1)
-getNE board (row,col) = []
-
--- Get all sqaures northwestof the current (row,col) 
-getNW :: Board -> (Int,Int) -> [Square]
-getNW board (row,col) | isValidSquare (row-1,col-1) = getSquare board (row-1,col-1) : getNW board (row-1,col-1)
-getNW board (row,col) = []
-
--- Get all sqaures northeast of the current (row,col) 
-getSE :: Board -> (Int,Int) -> [Square]
-getSE board (row,col) | isValidSquare (row+1,col+1) = getSquare board (row+1,col+1) : getSE board (row+1,col+1)
-getSE board (row,col) = []
-
--- Get all sqaures northeast of the current (row,col) 
-getSW :: Board -> (Int,Int) -> [Square]
-getSW board (row,col) | isValidSquare (row-1,col-1) = getSquare board (row-1,col-1) : getSW board (row-1,col-1)
-getSW board (row,col) = []
 
 
 -------------------------------------------------------------------------------------------------------------------
