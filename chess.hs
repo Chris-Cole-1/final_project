@@ -1,4 +1,5 @@
 import Data.Char
+import Data.List
 
 -------------------------------------------------------------------------------------------------------------------
 -- Type and Data Definitions
@@ -158,7 +159,18 @@ isValidMove board cur dst = case getSquare board cur of
                         in not $ friendly (Knight,c) dsq && dst `elem` lst
     Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
     Just (Rook,c) -> scanStraight board (Rook,c) cur dst
-    Just (Pawn,c) -> False
+    Just (Pawn,White) ->    let dsq = getSquare board dst
+                            in  if isEmpty dsq
+                                then    if pawnAtStart board cur && (fst cur - 2,snd cur) == dst 
+                                        then True
+                                        else (fst cur - 1,snd cur) == dst
+                                else pawnCanTake board cur dst
+    Just (Pawn,Black) ->    let dsq = getSquare board dst
+                            in  if isEmpty dsq
+                                then    if pawnAtStart board cur && (fst cur + 2,snd cur) == dst 
+                                        then True
+                                        else (fst cur + 1,snd cur) == dst
+                                else pawnCanTake board cur dst
     Nothing -> error "ERROR: No piece at first input square!"
 
 -- Returns a list of possible moves given a position on the board and a list of valid movements
@@ -173,20 +185,35 @@ kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
 
 -- All possible knight moves
 knightTuples :: [(Int,Int)]
-knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
+knightTuples = [(1,2), (2,1), (-1,-2), (-2,-1), (1,-2), (-1,2), (-2,1), (2,-1)]
 
--- All possible pawn moves
+-- All possible white pawn moves
 whitePawnTuples :: [(Int,Int)]
-whitePawnTuples = [(-1,0),(-2,0),(-1,-1),(-1,1)]
+whitePawnTuples = [(-1,0)]
 
+whitePawnTake :: [(Int,Int)]
+whitePawnTake = [(-1,-1),(-1,1)]
+
+whitePawnStep2 :: [(Int,Int)]
+whitePawnStep2 = [(-2,0)]
+
+-- All possible black pawn moves
 blackPawnTuples :: [(Int,Int)]
-blackPawnTuples = [(1,0),(2,0),(1,1),(1,-1)]
+blackPawnTuples = [(1,0)]
+
+blackPawnTake :: [(Int,Int)]
+blackPawnTake = [(1,1),(1,-1)]
+
+blackPawnStep2 :: [(Int,Int)]
+blackPawnStep2 = [(2,0)]
 
 -- Returns true if a pawn can take an opposing piece
 pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
-pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
-                                opp = getPiece (getSquare board dst)
-                            in opp /= Nothing && getColor pawn /= getColor opp
+pawnCanTake board cur dst = let pawn = getSquare board cur
+                                opp = getSquare board dst
+                            in case pawn of
+                                Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
 
 -- Given a row and col, returns true if that pawn has not moved yet
 pawnAtStart :: Board -> (Int,Int) -> Bool
@@ -258,18 +285,27 @@ getSW board (row,col) = []
 -- I/O
 -------------------------------------------------------------------------------------------------------------------
 
-main :: IO ()
-main = do
-    putStrLn "Welcome!\nPlease choose from one of the following options.\n ~ Start Game\n ~ Quit\n"
-    repl board
+-- Function to print a single row of the chessboard
+printSquare :: Square -> String
+printSquare square = [showPiece square]
 
-repl :: Board -> IO ()
-repl board = do 
-    putStrLn "Please enter your move\n"
-    s <- getLine
-    case s of
-        "Quit" -> return ()
-        --"Start Game" -> 
+-- Function to print a single row of the chessboard
+printRow :: [Square] -> Int -> IO ()
+printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map printSquare row) ++ "  |  " ++ show num
+--printRow row num = putStrLn $ "|  " ++ intercalate "  |  " (map unicodePiece row) ++ "  |  " ++ show num
+
+-- Function to print the entire chessboard
+printBoard :: Board -> IO ()
+printBoard board = do
+    mapM_ (\(row, num) -> do putStrLn "------------------------------------------------"; printRow row num) (zip board [8,7..1])
+    putStrLn "------------------------------------------------"
+    putStrLn "  A      B     C     D     E     F     G     H "
+
+
+main :: IO ()
+main = printBoard board
+
+
 
 -- Splits a string on a specified character
 splitOn :: Char -> String -> [String]
@@ -323,3 +359,18 @@ showPiece (Just (Bishop, Black)) = 'b'
 showPiece (Just (Knight, Black)) = 'n'
 showPiece (Just (pawn, Black))   = 'p'
 showPiece _ = ' '
+
+unicodePiece :: Maybe Piece -> String
+unicodePiece (Just (King, Black))   = "♔"
+unicodePiece (Just (Queen, Black))  = "♕"
+unicodePiece (Just (Rook, Black))   = "♖"
+unicodePiece (Just (Bishop, Black)) = "♗"
+unicodePiece (Just (Knight, Black)) = "♘"
+unicodePiece (Just (Pawn, Black))   = "♙"
+unicodePiece (Just (King, White))   = "♚"
+unicodePiece (Just (Queen, White))  = "♛"
+unicodePiece (Just (Rook, White) )  = "♜"
+unicodePiece (Just (Bishop, White)) = "♝"
+unicodePiece (Just (Knight, White)) = "♞"
+unicodePiece (Just (Pawn, White))   = "♟"
+unicodePiece _ = " "
