@@ -281,6 +281,9 @@ printBoard board = do
     putStrLn "------------------------------------------------"
     putStrLn "  A      B     C     D     E     F     G     H "
 
+nextPlayer::Color -> Color
+nextPlayer White = Black
+nextPlayer Black = White
 
 main :: IO ()
 main = do
@@ -288,29 +291,53 @@ main = do
     s <- getLine
     case s of
         "Quit" -> return ()
-        "Start Game" -> repl board
+        "Start Game" -> repl board White
     --repl board
 
-repl :: Board -> IO ()
-repl board = do 
+repl :: Board -> Color -> IO ()
+repl board col = do 
     printBoard board
-    putStrLn "Please enter your move\n(Enter Quit to exit game)"
+    putStrLn $ "Player " ++ show col ++ " Please enter your move\n(Enter Quit to exit game)"
     s <- getLine
     case s of
         "Quit" -> return ()
-        _ -> let move = posToSquare s
-           in if isValidMove board (fst move) (snd move)
-            then do
-                let update = makeMove board (fst move) (snd move)
-                repl update
-                else do
-                    putStrLn "Invalid Move"
-                    repl board
+        _ -> let move = posToSquare s in
+                 if isEmpty (getSquare board (fst (fst move) ,fst (snd move)))
+                    then do
+                        putStrLn "No Piece to Move"
+                    else
+                        case getSquare board (fst (fst move), snd (fst move)) of
+                            Just (pieceType, pieceColor) -> if col == pieceColor
+                                then
+                                     if isValidMove board (fst move) (snd move)
+                                        then do
+                                            let update = makeMove board (fst move) (snd move)
+                                            repl update (nextPlayer col)
+                                        else do
+                                            putStrLn "Invalid Move"
+                                            repl board col
+                                    --if the color matches the turn then allow the move which should be the code down below
+                                else do
+                                    putStrLn "Invalid Move, Try Again"
+                                    repl board col
+                                         --if the color doesn't match then reprompt for them to choose another piece
+            --let move = posToSquare s
+           --in if isValidMove board (fst move) (snd move)
+            --then do
+              --  let update = makeMove board (fst move) (snd move)
+               -- repl update col
+                --else do
+                  --  putStrLn "Invalid Move"
+                    --repl board col
         --"Start Game" -> 
             --parse input
             --check move
             --make move
             --print board
+
+            --let sq = getSquare board ((fst (fst move), fst (snd move))) --getting the square & make sure passing right thing
+                            --piece = getPiece sq --getting the piece
+                            --in if col == snd piece --grabbing the color
 
             --implement turns
 
