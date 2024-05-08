@@ -96,25 +96,41 @@ getSquare board (row,col) = if isValidSquare (row,col) then (board !! row) !! co
 
 -- Scans in a straight line in a certain direction to to see if we can make
 -- a move from the current position to the destination
+-- scanStraight :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
+-- scanStraight board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
+--                                                     cur = getSquare board (curRow,curCol)
+--                                                 in case dir of 
+--                                                     (0,0) -> not (friendly piece cur)
+--                                                     (r,0) -> isEmpty cur && scanStraight board piece (curRow+r,curCol) dst 
+--                                                     (0,c) -> isEmpty cur && scanStraight board piece (curRow,curCol+c) dst
+--                                                     _     -> False 
 scanStraight :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
 scanStraight board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
-                                                    cur = getSquare board (curRow,curCol)
-                                                in case dir of 
-                                                    (0,0) -> not (friendly piece cur)
-                                                    (r,0) -> isEmpty cur && scanStraight board piece (curRow+r,curCol) dst 
-                                                    (0,c) -> isEmpty cur && scanStraight board piece (curRow,curCol+c) dst
-                                                    _     -> False 
+                                                in  let nxt = getSquare board (curRow + fst dir,curCol + snd dir)
+                                                    in case dir of 
+                                                        (0,0) -> not (friendly piece nxt)
+                                                        (r,0) -> isEmpty nxt && scanStraight board piece (curRow+r,curCol) dst 
+                                                        (0,c) -> isEmpty nxt && scanStraight board piece (curRow,curCol+c) dst
+                                                        _     -> False 
 
 -- Scans in a diagonal line in a certain direction to see if we can make
 -- a move from the current position to the destination 
+-- scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
+-- scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
+--                                                 cur = getSquare board (curRow,curCol)
+--                                             in case dir of 
+--                                                 (0,0) -> not (friendly piece cur)
+--                                                 (r,0) -> False
+--                                                 (0,c) -> False
+--                                                 (r,c) -> isEmpty cur && scanStraight board piece (curRow+r,curCol+c) dst 
 scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
 scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
-                                                cur = getSquare board (curRow,curCol)
-                                            in case dir of 
-                                                (0,0) -> not (friendly piece cur)
-                                                (r,0) -> False
-                                                (0,c) -> False
-                                                (r,c) -> isEmpty cur && scanStraight board piece (curRow+r,curCol+c) dst 
+                                            in  let nxt = getSquare board (curRow + fst dir,curCol + snd dir)
+                                                in case dir of 
+                                                    (0,0) -> not (friendly piece nxt)
+                                                    (r,0) -> False
+                                                    (0,c) -> False
+                                                    (r,c) -> isEmpty nxt && scanStraight board piece (curRow+r,curCol+c) dst 
 
 -- Given two positions gets the direction of the move needed in a tuple
 -- Row: 1 is down, -1 is up
@@ -128,7 +144,7 @@ getDir (curRow,curCol) (nxtRow,nxtCol) = (
 -- Returns True if the two given squares contain pieces of the same color
 -- If either or both squares are empty (Nothing), it returns False
 friendly :: Piece -> Square -> Bool
-friendly p (Nothing) = False
+friendly _ (Nothing) = False
 friendly p (Just (t,c)) = snd p == c
 -- friendly b (Nothing) _ = False
 -- friendly b _ (Nothing) = False
@@ -185,7 +201,7 @@ pawnCanTake board cur dst = let pawn = getSquare board cur
                                 opp = getSquare board dst
                             in case pawn of
                                 Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
-                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur + 1, snd cur - 1) == dst || (fst cur + 1, snd cur + 1) == dst)
 
 -- Given a row and col, returns true if that pawn has not moved yet
 pawnAtStart :: Board -> (Int,Int) -> Bool
