@@ -160,17 +160,11 @@ isValidMove board cur dst = case getSquare board cur of
     Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
     Just (Rook,c) -> scanStraight board (Rook,c) cur dst
     Just (Pawn,White) ->    let dsq = getSquare board dst
-                            in  if isEmpty dsq
-                                then    if pawnAtStart board cur && (fst cur - 2,snd cur) == dst 
-                                        then True
-                                        else (fst cur - 1,snd cur) == dst
-                                else pawnCanTake board cur dst
+                                lst = moves cur whitePawnTuples
+                            in not $ friendly (Pawn,White) dsq && dst `elem` lst
     Just (Pawn,Black) ->    let dsq = getSquare board dst
-                            in  if isEmpty dsq
-                                then    if pawnAtStart board cur && (fst cur + 2,snd cur) == dst 
-                                        then True
-                                        else (fst cur + 1,snd cur) == dst
-                                else pawnCanTake board cur dst
+                                lst = moves cur blackPawnTuples
+                            in not $ friendly (Pawn,Black) dsq && dst `elem` lst
     Nothing -> error "ERROR: No piece at first input square!"
 
 -- Returns a list of possible moves given a position on the board and a list of valid movements
@@ -181,11 +175,9 @@ moves (r,c) validMoves = foldr (\x acc -> let mv = (r + fst x,c + snd x)
 
 -- Returns true if a pawn can take an opposing piece
 pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
-pawnCanTake board cur dst = let pawn = getSquare board cur
-                                opp = getSquare board dst
-                            in case pawn of
-                                Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
-                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
+                                opp = getPiece (getSquare board dst)
+                            in opp /= Nothing && getColor pawn /= getColor opp
 
 -- Given a row and col, returns true if that pawn has not moved yet
 pawnAtStart :: Board -> (Int,Int) -> Bool
@@ -269,6 +261,9 @@ printBoard board = do
     putStrLn "------------------------------------------------"
     putStrLn "  A      B     C     D     E     F     G     H "
 
+nextPlayer::Color -> Color
+nextPlayer White = Black
+nextPlayer Black = White
 
 main :: IO ()
 main = do
@@ -276,32 +271,37 @@ main = do
     s <- getLine
     case s of
         "Quit" -> return ()
-        "Start Game" -> repl board
+        
+        <<<<<<< Lani
+        "Start Game" -> repl board White
     --repl board
 
-repl :: Board -> IO ()
-repl board = do 
+repl :: Board -> Color -> IO ()
+repl board col = do 
     printBoard board
-    putStrLn "Please enter your move\n(Enter Quit to exit game)"
+    putStrLn $ "Player " ++ show col ++ " Please enter your move\n(Enter Quit to exit game)"
     s <- getLine
     case s of
         "Quit" -> return ()
-        _ -> let move = posToSquare s
-           in if isValidMove board (fst move) (snd move)
-            then do
-                let update = makeMove board (fst move) (snd move)
-                repl update
-                else do
-                    putStrLn "Invalid Move"
-                    repl board
-        --"Start Game" -> 
-            --parse input
-            --check move
-            --make move
-            --print board
-
-            --implement turns
-
+        _ -> let move = posToSquare s in
+                 if isEmpty (getSquare board (fst (fst move) ,fst (snd move)))
+                    then do
+                        putStrLn "No Piece to Move"
+                    else
+                        case getSquare board (fst (fst move), snd (fst move)) of
+                            Just (pieceType, pieceColor) -> if col == pieceColor
+                                then
+                                     if isValidMove board (fst move) (snd move)
+                                        then do
+                                            let update = makeMove board (fst move) (snd move)
+                                            repl update (nextPlayer col)
+                                        else do
+                                            putStrLn "Invalid Move"
+                                            repl board col
+                                    --if the color matches the turn then allow the move which should be the code down below
+                                else do
+                                    putStrLn "Invalid Move, Try Again"
+                                    repl board col
 
 
 -- Splits a string on a specified character
