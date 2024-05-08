@@ -76,7 +76,7 @@ isOccupied board (row,col) = case getSquare board (row,col) of
                             Just _ -> True
                             Nothing -> False
 
--- Checks if a given sqaure is empty
+-- Checks if a given square is empty
 isEmpty :: Square -> Bool
 isEmpty Nothing = True
 isEmpty _ = False
