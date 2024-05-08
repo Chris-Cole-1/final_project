@@ -96,25 +96,41 @@ getSquare board (row,col) = if isValidSquare (row,col) then (board !! row) !! co
 
 -- Scans in a straight line in a certain direction to to see if we can make
 -- a move from the current position to the destination
+-- scanStraight :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
+-- scanStraight board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
+--                                                     cur = getSquare board (curRow,curCol)
+--                                                 in case dir of 
+--                                                     (0,0) -> not (friendly piece cur)
+--                                                     (r,0) -> isEmpty cur && scanStraight board piece (curRow+r,curCol) dst 
+--                                                     (0,c) -> isEmpty cur && scanStraight board piece (curRow,curCol+c) dst
+--                                                     _     -> False 
 scanStraight :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
 scanStraight board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
-                                                    cur = getSquare board (curRow,curCol)
-                                                in case dir of 
-                                                    (0,0) -> not (friendly piece cur)
-                                                    (r,0) -> isEmpty cur && scanStraight board piece (curRow+r,curCol) dst 
-                                                    (0,c) -> isEmpty cur && scanStraight board piece (curRow,curCol+c) dst
-                                                    _     -> False 
+                                                in  let nxt = getSquare board (curRow + fst dir,curCol + snd dir)
+                                                    in case dir of 
+                                                        (0,0) -> not (friendly piece nxt)
+                                                        (r,0) -> isEmpty nxt && scanStraight board piece (curRow+r,curCol) dst 
+                                                        (0,c) -> isEmpty nxt && scanStraight board piece (curRow,curCol+c) dst
+                                                        _     -> False 
 
 -- Scans in a diagonal line in a certain direction to see if we can make
 -- a move from the current position to the destination 
+-- scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
+-- scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
+--                                                 cur = getSquare board (curRow,curCol)
+--                                             in case dir of 
+--                                                 (0,0) -> not (friendly piece cur)
+--                                                 (r,0) -> False
+--                                                 (0,c) -> False
+--                                                 (r,c) -> isEmpty cur && scanStraight board piece (curRow+r,curCol+c) dst 
 scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
 scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
-                                                cur = getSquare board (curRow,curCol)
-                                            in case dir of 
-                                                (0,0) -> not (friendly piece cur)
-                                                (r,0) -> False
-                                                (0,c) -> False
-                                                (r,c) -> isEmpty cur && scanStraight board piece (curRow+r,curCol+c) dst 
+                                            in  let nxt = getSquare board (curRow + fst dir,curCol + snd dir)
+                                                in case dir of 
+                                                    (0,0) -> not (friendly piece nxt)
+                                                    (r,0) -> False
+                                                    (0,c) -> False
+                                                    (r,c) -> isEmpty nxt && scanStraight board piece (curRow+r,curCol+c) dst 
 
 -- Given two positions gets the direction of the move needed in a tuple
 -- Row: 1 is down, -1 is up
@@ -128,7 +144,7 @@ getDir (curRow,curCol) (nxtRow,nxtCol) = (
 -- Returns True if the two given squares contain pieces of the same color
 -- If either or both squares are empty (Nothing), it returns False
 friendly :: Piece -> Square -> Bool
-friendly p (Nothing) = False
+friendly _ (Nothing) = False
 friendly p (Just (t,c)) = snd p == c
 -- friendly b (Nothing) _ = False
 -- friendly b _ (Nothing) = False
@@ -160,11 +176,17 @@ isValidMove board cur dst = case getSquare board cur of
     Just (Bishop,c) -> scanDiag board (Bishop,c) cur dst
     Just (Rook,c) -> scanStraight board (Rook,c) cur dst
     Just (Pawn,White) ->    let dsq = getSquare board dst
-                                lst = moves cur whitePawnTuples
-                            in not $ friendly (Pawn,White) dsq && dst `elem` lst
+                            in  if isEmpty dsq
+                                then    if pawnAtStart board cur && (fst cur - 2,snd cur) == dst 
+                                        then True
+                                        else (fst cur - 1,snd cur) == dst
+                                else pawnCanTake board cur dst
     Just (Pawn,Black) ->    let dsq = getSquare board dst
-                                lst = moves cur blackPawnTuples
-                            in not $ friendly (Pawn,Black) dsq && dst `elem` lst
+                            in  if isEmpty dsq
+                                then    if pawnAtStart board cur && (fst cur + 2,snd cur) == dst 
+                                        then True
+                                        else (fst cur + 1,snd cur) == dst
+                                else pawnCanTake board cur dst
     Nothing -> error "ERROR: No piece at first input square!"
 
 -- Returns a list of possible moves given a position on the board and a list of valid movements
@@ -175,9 +197,11 @@ moves (r,c) validMoves = foldr (\x acc -> let mv = (r + fst x,c + snd x)
 
 -- Returns true if a pawn can take an opposing piece
 pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
-pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
-                                opp = getPiece (getSquare board dst)
-                            in opp /= Nothing && getColor pawn /= getColor opp
+pawnCanTake board cur dst = let pawn = getSquare board cur
+                                opp = getSquare board dst
+                            in case pawn of
+                                Just (Pawn,White) -> (getColor opp == Black) && ((fst cur - 1, snd cur - 1) == dst || (fst cur - 1, snd cur + 1) == dst)
+                                Just (Pawn,Black) -> (getColor opp == White) && ((fst cur + 1, snd cur - 1) == dst || (fst cur + 1, snd cur + 1) == dst)
 
 -- Given a row and col, returns true if that pawn has not moved yet
 pawnAtStart :: Board -> (Int,Int) -> Bool
@@ -271,7 +295,7 @@ main = do
     s <- getLine
     case s of
         "Quit" -> return ()
-        "Start Game" -> repl board
+        "Start Game" -> repl board White
     --repl board
 
 repl :: Board -> Color -> IO ()
@@ -281,14 +305,25 @@ repl board col = do
     s <- getLine
     case s of
         "Quit" -> return ()
-        _ -> let move = posToSquare s
-           in if isValidMove board (fst move) (snd move)
-            then do
-                let update = makeMove board (fst move) (snd move)
-                repl update
-                else do
-                    putStrLn "Invalid Move"
-                    repl board
+        _ -> let move = posToSquare s in
+                 if isEmpty (getSquare board (fst (fst move) ,fst (snd move)))
+                    then do
+                        putStrLn "No Piece to Move"
+                    else
+                        case getSquare board (fst (fst move), snd (fst move)) of
+                            Just (pieceType, pieceColor) -> if col == pieceColor
+                                then
+                                     if isValidMove board (fst move) (snd move)
+                                        then do
+                                            let update = makeMove board (fst move) (snd move)
+                                            repl update (nextPlayer col)
+                                        else do
+                                            putStrLn "Invalid Move"
+                                            repl board col
+                                    --if the color matches the turn then allow the move which should be the code down below
+                                else do
+                                    putStrLn "Invalid Move, Try Again"
+                                    repl board col
         --"Start Game" -> 
             --parse input
             --check move
