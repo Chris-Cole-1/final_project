@@ -39,19 +39,15 @@ board =
 --         then updateElement board (row,col) (Just piece)
 --         else board
 
+
 -------------------------------------------------------------------------------------------------------------------
--- Making moves
+-- Updating the board
 -------------------------------------------------------------------------------------------------------------------
 
 -- Assumes the move to be made is valid and updates the board with that move
 makeMove :: Board -> (Int,Int) -> (Int,Int) -> Board
 makeMove board cur dst =    let newBoard = updateBoard board dst (getPiece (getSquare board cur))
                             in updateBoard newBoard cur Nothing
-
-
--------------------------------------------------------------------------------------------------------------------
--- Updating the board
--------------------------------------------------------------------------------------------------------------------
 
 -- Given a list, and index, and an element, update that list at that index with that element
 updateRow :: [a] -> Int -> a -> [a]
@@ -109,28 +105,47 @@ scanStraight board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol)
                                                 in  let nxt = getSquare board (curRow + fst dir,curCol + snd dir)
                                                     in case dir of 
                                                         (0,0) -> not (friendly piece nxt)
-                                                        (r,0) -> isEmpty nxt && scanStraight board piece (curRow+r,curCol) dst 
-                                                        (0,c) -> isEmpty nxt && scanStraight board piece (curRow,curCol+c) dst
+                                                        (r,0) -> scanStraight' board piece (curRow+r,curCol) dst dir
+                                                        (0,c) -> scanStraight' board piece (curRow,curCol+c) dst dir
                                                         _     -> False 
+
+-- Helper function for scanStraight. Performs recursion of scanning diagonally 
+--      from a starting position (curRow, curCol) towards a destination (dstRow, dstCol).
+-- Checks if the current position is equal to the destination position. If so, returns True.
+-- Checks if the current position is within the bounds of the chessboard. If not, returns False.
+-- Checks if the square at the current position contains a friendly piece. If so, returns False.
+-- Recursively calls itself with the updated position (curRow + dirRow, curCol + dirCol) 
+--      to continue scanning in the same direction until reaching the destination or encountering a blocking condition. 
+scanStraight' :: Board -> Piece -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Bool
+scanStraight' board piece (curRow,curCol) (dstRow,dstCol) (dirRow,dirCol)
+    | curRow == dstRow && curCol == dstCol = True  -- Reached destination
+    | not (isValidSquare (curRow, curCol)) = False    -- Out of bounds
+    | friendly piece (getSquare board (curRow, curCol)) = False  -- Friendly piece blocking
+    | otherwise = scanStraight' board piece (curRow + dirRow, curCol + dirCol) (dstRow, dstCol) (dirRow, dirCol)
 
 -- Scans in a diagonal line in a certain direction to see if we can make
 -- a move from the current position to the destination 
--- scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
--- scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
---                                                 cur = getSquare board (curRow,curCol)
---                                             in case dir of 
---                                                 (0,0) -> not (friendly piece cur)
---                                                 (r,0) -> False
---                                                 (0,c) -> False
---                                                 (r,c) -> isEmpty cur && scanStraight board piece (curRow+r,curCol+c) dst 
 scanDiag :: Board -> Piece -> (Int,Int) -> (Int,Int) -> Bool
 scanDiag board piece (curRow,curCol) dst =  let dir = getDir (curRow,curCol) dst
-                                            in  let nxt = getSquare board (curRow + fst dir,curCol + snd dir)
-                                                in case dir of 
-                                                    (0,0) -> not (friendly piece nxt)
-                                                    (r,0) -> False
-                                                    (0,c) -> False
-                                                    (r,c) -> isEmpty nxt && scanStraight board piece (curRow+r,curCol+c) dst 
+                                            in case dir of 
+                                                (0, 0) -> not (friendly piece (getSquare board (curRow, curCol)))
+                                                (r, 0) -> False
+                                                (0, c) -> False
+                                                (r, c) -> scanDiag' board piece (curRow + r, curCol + c) dst dir
+
+-- Helper function for scanDiag. Performs recursion of scanning diagonally 
+--      from a starting position (curRow, curCol) towards a destination (dstRow, dstCol).
+-- Checks if the current position is equal to the destination position. If so, returns True.
+-- Checks if the current position is within the bounds of the chessboard. If not, returns False.
+-- Checks if the square at the current position contains a friendly piece. If so, returns False.
+-- Recursively calls itself with the updated position (curRow + dirRow, curCol + dirCol) 
+--      to continue scanning in the same direction until reaching the destination or encountering a blocking condition. 
+scanDiag' :: Board -> Piece -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Bool
+scanDiag' board piece (curRow,curCol) (dstRow,dstCol) (dirRow,dirCol)
+    | curRow == dstRow && curCol == dstCol = True  -- Reached destination
+    | not (isValidSquare (curRow, curCol)) = False    -- Out of bounds
+    | friendly piece (getSquare board (curRow, curCol)) = False  -- Friendly piece blocking
+    | otherwise = scanDiag' board piece (curRow + dirRow, curCol + dirCol) (dstRow, dstCol) (dirRow, dirCol)
 
 -- Given two positions gets the direction of the move needed in a tuple
 -- Row: 1 is down, -1 is up
@@ -285,6 +300,9 @@ printBoard board = do
     putStrLn "------------------------------------------------"
     putStrLn "  A      B     C     D     E     F     G     H "
 
+nextPlayer::Color -> Color
+nextPlayer White = Black
+nextPlayer Black = White
 
 main :: IO ()
 main = do
@@ -292,24 +310,31 @@ main = do
     s <- getLine
     case s of
         "Quit" -> return ()
-        "Start Game" -> repl board
+        "Start Game" -> repl board White
     --repl board
 
-repl :: Board -> IO ()
-repl board = do 
+repl :: Board -> Color -> IO ()
+repl board col = do 
     printBoard board
-    putStrLn "Please enter your move\n(Enter Quit to exit game)"
+    putStrLn $ "Player " ++ show col ++ " Please enter your move\n(Enter Quit to exit game)"
     s <- getLine
     case s of
         "Quit" -> return ()
-        _ -> let move = posToSquare s
-           in if isValidMove board (fst move) (snd move)
-            then do
-                let update = makeMove board (fst move) (snd move)
-                repl update
-                else do
-                    putStrLn "Invalid Move"
-                    repl board
+        _ -> let move = posToSquare s in
+                        case getSquare board (fst (fst move), snd (fst move)) of
+                            Just (pieceType, pieceColor) -> if col == pieceColor
+                                then
+                                     if isValidMove board (fst move) (snd move)
+                                        then do
+                                            let update = makeMove board (fst move) (snd move)
+                                            repl update (nextPlayer col)
+                                        else do
+                                            putStrLn "Invalid Move"
+                                            repl board col
+                                    --if the color matches the turn then allow the move which should be the code down below
+                                else do
+                                    putStrLn "Invalid Move, Try Again"
+                                    repl board col
         --"Start Game" -> 
             --parse input
             --check move
