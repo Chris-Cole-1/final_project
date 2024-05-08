@@ -173,22 +173,6 @@ moves :: (Int,Int) -> [(Int,Int)] -> [(Int,Int)]
 moves (r,c) validMoves = foldr (\x acc -> let mv = (r + fst x,c + snd x) 
                                           in if isValidSquare mv then mv : acc else acc) [] validMoves
 
--- All possible king moves
-kingTuples :: [(Int,Int)]
-kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
-
--- All possible knight moves
-knightTuples :: [(Int,Int)]
-knightTuples = [(2,3), (3,2), (-2,-3), (-3,-2), (2,-3), (-2,3), (-3,2), (3,-2)]
-
--- All possible white pawn moves
-whitePawnTuples :: [(Int,Int)]
-whitePawnTuples = [(-1,0),(-2,0),(-1,-1),(-1,1)]
-
--- All possible black pawn moves
-blackPawnTuples :: [(Int,Int)]
-blackPawnTuples = [(1,0),(2,0),(1,1),(1,-1)]
-
 -- Returns true if a pawn can take an opposing piece
 pawnCanTake :: Board -> (Int,Int) -> (Int,Int) -> Bool
 pawnCanTake board cur dst = let pawn = getPiece (getSquare board cur)
@@ -204,61 +188,57 @@ pawnAtStart board (row,col) = case getSquare board (row,col) of
 -- Given a current index and a destination index,
 --      returns true if ?????
 canCaptureKing :: Board -> (Int,Int) -> (Int,Int) -> Bool
-canCaptureKing board cur dst =  let piece = getPiece (getSquare board cur)
-                                in False
+canCaptureKing board king opp = let k = getPiece (getSquare board king)
+                                    o = getPiece (getSquare board opp)
+                                in isValidMove board opp king
 
 -- Determines if the king of the specified color is in check
 isCheck :: Board -> (Int,Int) -> Bool
-isCheck board pos = False
+isCheck board king =    let opps = getPiecesBoard board (0,0) (getColor (getSquare board king))
+                        in foldr (\x acc -> isValidMove board x king || acc) False opps
 
 -- Determines if the king of the specified color is in checkmate
 isCheckmate :: Color -> Board -> Bool
 isCheckmate c b = False
 
+-- Gets all peices from a row with the specified color and stores those indexes in a list
+getPiecesRow :: [Square] -> Int -> Int -> Color -> [(Int,Int)]
+getPiecesRow [] _ _ _ = []
+getPiecesRow (l:ls) row col color = if getColor l == color then [(row,col)] else getPiecesRow ls row (col+1) color
 
--------------------------------------------------------------------------------------------------------------------
--- Getting squares
--------------------------------------------------------------------------------------------------------------------
+-- Get all pieces from the board with the specified color and stores those indexes in a list
+--      NOTE* -> Need to pass it like: getPiecesBoard (0,0) color so that it starts at the beginning of the board
+getPiecesBoard :: [[Square]] -> (Int,Int) -> Color -> [(Int,Int)]
+getPiecesBoard [] _ _ = []
+getPiecesBoard (row:rest) (r,c) color = getPiecesRow row r c color ++ getPiecesBoard rest (r-1,0) color
 
--- Get all sqaures north of the current (row,col) 
-getN :: Board -> (Int,Int) -> [Square]
-getN board (row,col) | isValidSquare (row-1,col) = getSquare board (row-1,col) : getN board (row-1,col)
-getN board (row,col) = []
+-- All possible king moves
+kingTuples :: [(Int,Int)]
+kingTuples = [(i,j) | i <- [-1..1], j <- [-1..1], not (i == 0 && j == 0)]
 
--- Get all sqaures south of the current (row,col) 
-getS :: Board -> (Int,Int) -> [Square]
-getS board (row,col) | isValidSquare (row+1,col) = getSquare board (row+1,col) : getS board (row+1,col)
-getS board (row,col) = []
+-- All possible knight moves
+knightTuples :: [(Int,Int)]
+knightTuples = [(1,2), (2,1), (-1,-2), (-2,-1), (1,-2), (-1,2), (-2,1), (2,-1)]
 
--- Get all sqaures east of the current (row,col) 
-getE :: Board -> (Int,Int) -> [Square]
-getE board (row,col) | isValidSquare (row,col+1) = getSquare board (row,col+1) : getE board (row,col+1)
-getE board (row,col) = []
+-- All possible white pawn moves
+whitePawnTuples :: [(Int,Int)]
+whitePawnTuples = [(-1,0)]
 
--- Get all sqaures west of the current (row,col) 
-getW :: Board -> (Int,Int) -> [Square]
-getW board (row,col) | isValidSquare (row,col-1) = getSquare board (row,col-1) : getW board (row,col-1)
-getW board (row,col) = []
+whitePawnTake :: [(Int,Int)]
+whitePawnTake = [(-1,-1),(-1,1)]
 
--- Get all sqaures northeast of the current (row,col) 
-getNE :: Board -> (Int,Int) -> [Square]
-getNE board (row,col) | isValidSquare (row-1,col+1) = getSquare board (row-1,col+1) : getNE board (row-1,col+1)
-getNE board (row,col) = []
+whitePawnStep2 :: [(Int,Int)]
+whitePawnStep2 = [(-2,0)]
 
--- Get all sqaures northwestof the current (row,col) 
-getNW :: Board -> (Int,Int) -> [Square]
-getNW board (row,col) | isValidSquare (row-1,col-1) = getSquare board (row-1,col-1) : getNW board (row-1,col-1)
-getNW board (row,col) = []
+-- All possible black pawn moves
+blackPawnTuples :: [(Int,Int)]
+blackPawnTuples = [(1,0)]
 
--- Get all sqaures northeast of the current (row,col) 
-getSE :: Board -> (Int,Int) -> [Square]
-getSE board (row,col) | isValidSquare (row+1,col+1) = getSquare board (row+1,col+1) : getSE board (row+1,col+1)
-getSE board (row,col) = []
+blackPawnTake :: [(Int,Int)]
+blackPawnTake = [(1,1),(1,-1)]
 
--- Get all sqaures northeast of the current (row,col) 
-getSW :: Board -> (Int,Int) -> [Square]
-getSW board (row,col) | isValidSquare (row-1,col-1) = getSquare board (row-1,col-1) : getSW board (row-1,col-1)
-getSW board (row,col) = []
+blackPawnStep2 :: [(Int,Int)]
+blackPawnStep2 = [(2,0)]
 
 
 -------------------------------------------------------------------------------------------------------------------
@@ -291,6 +271,8 @@ main = do
     s <- getLine
     case s of
         "Quit" -> return ()
+        
+        <<<<<<< Lani
         "Start Game" -> repl board White
     --repl board
 
@@ -320,27 +302,6 @@ repl board col = do
                                 else do
                                     putStrLn "Invalid Move, Try Again"
                                     repl board col
-                                         --if the color doesn't match then reprompt for them to choose another piece
-            --let move = posToSquare s
-           --in if isValidMove board (fst move) (snd move)
-            --then do
-              --  let update = makeMove board (fst move) (snd move)
-               -- repl update col
-                --else do
-                  --  putStrLn "Invalid Move"
-                    --repl board col
-        --"Start Game" -> 
-            --parse input
-            --check move
-            --make move
-            --print board
-
-            --let sq = getSquare board ((fst (fst move), fst (snd move))) --getting the square & make sure passing right thing
-                            --piece = getPiece sq --getting the piece
-                            --in if col == snd piece --grabbing the color
-
-            --implement turns
-
 
 
 -- Splits a string on a specified character
